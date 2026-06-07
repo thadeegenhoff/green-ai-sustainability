@@ -1,0 +1,251 @@
+[
+    {
+        "id": "f6f2187d.f17ca8",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "469921e3dea8f325",
+        "type": "mqtt-broker",
+        "name": "GreenAI",
+        "broker": "mosquitto",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "6fc96c1db16350ae",
+        "type": "influxdb",
+        "hostname": "127.0.0.1",
+        "port": 8086,
+        "protocol": "http",
+        "database": "database",
+        "name": "GreenAIDB",
+        "usetls": false,
+        "tls": "",
+        "influxdbVersion": "2.0",
+        "url": "http://influxdb:8086",
+        "timeout": 10,
+        "rejectUnauthorized": true
+    },
+    {
+        "id": "3cc11d24.ff01a2",
+        "type": "comment",
+        "z": "f6f2187d.f17ca8",
+        "name": "WARNING: please check you have started this container with a volume that is mounted to /data\\n otherwise any flow changes are lost when you redeploy or upgrade the container\\n (e.g. upgrade to a more recent node-red docker image).\\n  If you are using named volumes you can ignore this warning.\\n Double click or see info side panel to learn how to start Node-RED in Docker to save your work",
+        "info": "\nTo start docker with a bind mount volume (-v option), for example:\n\n```\ndocker run -it -p 1880:1880 -v /home/user/node_red_data:/data --name mynodered nodered/node-red\n```\n\nwhere `/home/user/node_red_data` is a directory on your host machine where you want to store your flows.\n\nIf you do not do this then you can experiment and redploy flows, but if you restart or upgrade the container the flows will be disconnected and lost. \n\nThey will still exist in a hidden data volume, which can be recovered using standard docker techniques, but that is much more complex than just starting with a named volume as described above.",
+        "x": 350,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "a6fa85fe93ddab93",
+        "type": "mqtt in",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "topic": "#",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "469921e3dea8f325",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 90,
+        "y": 200,
+        "wires": [
+            [
+                "4723f2a6a2a7810b"
+            ]
+        ]
+    },
+    {
+        "id": "f17e03fa8b5c424d",
+        "type": "influxdb out",
+        "z": "f6f2187d.f17ca8",
+        "influxdb": "6fc96c1db16350ae",
+        "name": "GreenAIDB",
+        "measurement": "shelly_plug",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "thade",
+        "bucket": "greenaidata",
+        "x": 530,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "4723f2a6a2a7810b",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "Daten-Transformieren",
+        "func": "function parsePayload(payload) {\n    if (Buffer.isBuffer(payload)) {\n        payload = payload.toString(\"utf8\");\n    }\n\n    if (typeof payload === \"string\") {\n        const trimmed = payload.trim();\n        try {\n            return JSON.parse(trimmed);\n        } catch (e) {\n            return trimmed;\n        }\n    }\n\n    return payload;\n}\n\nfunction addNumber(fields, key, value) {\n    const numberValue = Number(value);\n    if (Number.isFinite(numberValue)) {\n        fields[key] = numberValue;\n    }\n}\n\nfunction finish(fields, tags) {\n    const cleanFields = {};\n\n    for (const [key, value] of Object.entries(fields)) {\n        if (typeof value === \"boolean\") {\n            cleanFields[key] = value;\n        } else {\n            const numberValue = Number(value);\n            if (Number.isFinite(numberValue)) {\n                cleanFields[key] = numberValue;\n            }\n        }\n    }\n\n    if (Object.keys(cleanFields).length === 0) {\n        return null;\n    }\n\n    msg.measurement = \"shelly_plug\";\n    msg.payload = [cleanFields, tags];\n\n    return msg;\n}\n\nfunction extractStatus(status, fields) {\n    if (!status || typeof status !== \"object\") {\n        return;\n    }\n\n    addNumber(fields, \"power_w\", status.apower);\n    addNumber(fields, \"voltage_v\", status.voltage);\n    addNumber(fields, \"current_a\", status.current);\n    addNumber(fields, \"frequency_hz\", status.freq);\n    addNumber(fields, \"power_factor\", status.pf);\n\n    if (status.output !== undefined) {\n        fields.output = Boolean(status.output);\n    }\n\n    if (status.aenergy && status.aenergy.total !== undefined) {\n        addNumber(fields, \"energy_wh\", status.aenergy.total);\n    }\n\n    if (status.temperature && status.temperature.tC !== undefined) {\n        addNumber(fields, \"temperature_c\", status.temperature.tC);\n    }\n}\n\nconst topic = msg.topic || \"\";\nconst parts = topic.split(\"/\");\nconst payload = parsePayload(msg.payload);\n\nlet fields = {};\nlet tags = {\n    source: \"shelly\"\n};\n\n/*\n * Shelly Gen1:\n * shellies/<device>/relay/0/power\n * shellies/<device>/relay/0/energy\n * shellies/<device>/relay/0\n */\nif (parts[0] === \"shellies\" && parts[2] === \"relay\" && parts[3] === \"0\") {\n    const device = parts[1];\n    const metric = parts[4] || \"state\";\n\n    tags.device = device;\n    tags.generation = \"gen1\";\n\n    if (metric === \"power\") {\n        addNumber(fields, \"power_w\", payload);\n    } else if (metric === \"energy\") {\n        const wattMinutes = Number(payload);\n        if (Number.isFinite(wattMinutes)) {\n            fields.energy_wh = wattMinutes / 60.0;\n        }\n    } else if (metric === \"state\") {\n        if (payload === \"on\") fields.output = true;\n        if (payload === \"off\") fields.output = false;\n    } else if (metric === \"overpower_value\") {\n        addNumber(fields, \"overpower_w\", payload);\n    }\n\n    return finish(fields, tags);\n}\n\n/*\n * Shelly Gen2/Gen3:\n * <device>/status/switch:0\n * <device>/status\n * <device>/events/rpc\n */\nif (parts.length >= 2) {\n    const device = parts[0];\n\n    tags.device = device;\n    tags.generation = \"gen2_or_gen3\";\n\n    let container = null;\n\n    if (topic.endsWith(\"/status\") && payload && typeof payload === \"object\") {\n        container = payload;\n    }\n\n    if (topic.endsWith(\"/events/rpc\") && payload && typeof payload === \"object\") {\n        container = payload.params || payload;\n    }\n\n    if (topic.endsWith(\"/status/switch:0\") && payload && typeof payload === \"object\") {\n        container = { \"switch:0\": payload };\n    }\n\n    if (topic.endsWith(\"/status/pm1:0\") && payload && typeof payload === \"object\") {\n        container = { \"pm1:0\": payload };\n    }\n\n    if (container) {\n        const switchStatus = container[\"switch:0\"] || {};\n        const pmStatus = container[\"pm1:0\"] || container[\"PM1:0\"] || {};\n\n        extractStatus(switchStatus, fields);\n        extractStatus(pmStatus, fields);\n\n        return finish(fields, tags);\n    }\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 200,
+        "wires": [
+            [
+                "f17e03fa8b5c424d"
+            ]
+        ]
+    },
+    {
+        "id": "c35c91fa29bf12cd",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "Build http",
+        "func": "const zone = env.get(\"ELECTRICITY_MAPS_ZONE\") || \"DE\";\nconst token = env.get(\"ELECTRICITY_MAPS_TOKEN\");\n\nif (!token) {\n    node.error(\"ELECTRICITY_MAPS_TOKEN ist nicht gesetzt\", msg);\n    return null;\n}\n\nmsg.method = \"GET\";\n\nmsg.url = `https://api.electricitymap.org/v4/carbon-intensity/latest?zone=${zone}&emissionFactorType=lifecycle&temporalGranularity=hourly`;\n\nmsg.headers = {\n    \"auth-token\": token,\n    \"Accept\": \"application/json\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 220,
+        "y": 320,
+        "wires": [
+            [
+                "091fb0be5e093515"
+            ]
+        ]
+    },
+    {
+        "id": "0272561585eea138",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "Transform CO2",
+        "func": "const d = msg.payload;\n\nif (!d || d.carbonIntensity === undefined) {\n    node.error(\"Keine carbonIntensity in der Electricity-Maps-Antwort gefunden\", msg);\n    return null;\n}\n\nconst zone = d.zone || env.get(\"ELECTRICITY_MAPS_ZONE\") || \"DE\";\nconst observedTime = d.datetime ? new Date(d.datetime).getTime() : Date.now();\n\nmsg.payload = [\n    {\n        carbon_intensity_gco2eq_kwh: Number(d.carbonIntensity),\n        is_estimated: d.isEstimated === true,\n        time: observedTime\n    },\n    {\n        source: \"electricity_maps\",\n        zone: zone,\n        emission_factor_type: d.emissionFactorType || \"lifecycle\",\n        temporal_granularity: \"hourly\"\n    }\n];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 580,
+        "y": 320,
+        "wires": [
+            [
+                "89ab1b488a6a2dbf"
+            ]
+        ]
+    },
+    {
+        "id": "091fb0be5e093515",
+        "type": "http request",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "method": "use",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 390,
+        "y": 320,
+        "wires": [
+            [
+                "0272561585eea138"
+            ]
+        ]
+    },
+    {
+        "id": "7ff6f1980f5c95ce",
+        "type": "influxdb out",
+        "z": "f6f2187d.f17ca8",
+        "influxdb": "6fc96c1db16350ae",
+        "name": "",
+        "measurement": "grid_carbon_intensity",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "thade",
+        "bucket": "co2-data",
+        "x": 860,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "a9f83b322654045a",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "d": true,
+        "name": "",
+        "props": [],
+        "repeat": "3600",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 70,
+        "y": 320,
+        "wires": [
+            [
+                "c35c91fa29bf12cd"
+            ]
+        ]
+    },
+    {
+        "id": "89ab1b488a6a2dbf",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "Beispielausgabe",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 780,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "36abfb0db56b585d",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-influxdb": "0.7.0"
+        }
+    }
+]
