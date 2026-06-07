@@ -1,0 +1,38 @@
+﻿# Secrets / Zugangsdaten
+.env
+.env.*
+!.env.example
+!.env.*.example
+flows_cred.json
+*.pem
+*.key
+*token*
+*secret*
+*password*
+
+# Docker-/Datenbank-Volumes und Laufdaten
+influxdb/
+influx-data/
+grafana-data/
+node-red-data/
+data/
+volumes/
+*.db
+*.sqlite
+*.tar
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+
+# Windows / Editor
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# Mosquitto Passwortdateien
+mosquitto/**/passwd
+mosquitto/**/passwd*
+!mosquitto/**/passwd.example
