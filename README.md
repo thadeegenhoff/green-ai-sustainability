@@ -141,6 +141,12 @@ grafana/provisioning/datasources/influxdb.yml
 
 Dashboards können in Grafana erstellt oder importiert werden. Exportiere fertige Dashboards als JSON, wenn sie versioniert oder in einer Abgabe nachvollziehbar dokumentiert werden sollen.
 
+### Grafana-Dashboards
+
+Die Grafana-Dashboards werden versioniert im Repository abgelegt und beim Start von Grafana automatisch provisioniert. Dafür liegen die Dashboard-Exporte im Ordner `grafana/dashboards/` und die Provisioning-Konfiguration unter `grafana/provisioning/dashboards/dashboards.yml`.
+
+
+
 ## Verbindung zum GreenAI-Orchestrator
 
 Der Orchestrator schreibt Trainings-, Inferenz- und Energieauswertungen in diese InfluxDB. Aus der Orchestrator-VM darf dafür nicht `http://influxdb:8086` verwendet werden, weil dieser Name nur innerhalb des Docker-Compose-Netzwerks gilt.
