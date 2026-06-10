@@ -1,0 +1,907 @@
+{
+  "apiVersion": "dashboard.grafana.app/v2",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "adzq8kf",
+    "namespace": "default",
+    "uid": "e140fc1f-13ac-45af-87fc-0b440b88b3e8",
+    "resourceVersion": "1780238310553000",
+    "generation": 4,
+    "creationTimestamp": "2026-05-27T20:43:57Z",
+    "labels": {
+      "grafana.app/deprecatedInternalID": "1592381539340288"
+    },
+    "annotations": {
+      "grafana.app/createdBy": "user:bfm5uob69txj4c",
+      "grafana.app/folder": "",
+      "grafana.app/saved-from-ui": "Grafana v13.0.1+security-01 (9bbe672d)",
+      "grafana.app/updatedBy": "user:bfm5uob69txj4c",
+      "grafana.app/updatedTimestamp": "2026-05-31T14:38:30Z"
+    }
+  },
+  "spec": {
+    "annotations": [
+      {
+        "kind": "AnnotationQuery",
+        "spec": {
+          "query": {
+            "kind": "DataQuery",
+            "group": "grafana",
+            "version": "v0",
+            "datasource": {
+              "name": "-- Grafana --"
+            },
+            "spec": {}
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "builtIn": true
+        }
+      }
+    ],
+    "cursorSync": "Off",
+    "editable": true,
+    "elements": {
+      "panel-1": {
+        "kind": "Panel",
+        "spec": {
+          "id": 1,
+          "title": "Inference Übersicht",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "perf =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -30d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_inference_summary\")\r\n    |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n    |> filter(fn: (r) => r.train_run_id == \"${train_run_id}\")\r\n    |> filter(fn: (r) =>\r\n      r._field == \"technical_success_rate\" or\r\n      r._field == \"top1_accuracy\" or\r\n      r._field == \"throughput_req_per_sec\" or\r\n      r._field == \"latency_ms_p95\" or\r\n      r._field == \"model_inference_ms_p95\"\r\n    )\r\n    |> group(columns: [\r\n      \"eval_id\",\r\n      \"train_run_id\",\r\n      \"inference_node\",\r\n      \"benchmark_node\",\r\n      \"concurrency\",\r\n      \"batch_size\",\r\n      \"_field\"\r\n    ])\r\n    |> last()\r\n\r\nenergy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -30d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_inference_energy_total\")\r\n    |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n    |> filter(fn: (r) => r.train_run_id == \"${train_run_id}\")\r\n    |> filter(fn: (r) =>\r\n      r._field == \"total_energy_wh\" or\r\n      r._field == \"total_joule_per_request\" or\r\n      r._field == \"total_wh_per_1000_requests\" or\r\n      r._field == \"total_avg_power_w\"\r\n    )\r\n    |> group(columns: [\r\n      \"eval_id\",\r\n      \"train_run_id\",\r\n      \"inference_node\",\r\n      \"benchmark_node\",\r\n      \"concurrency\",\r\n      \"batch_size\",\r\n      \"_field\"\r\n    ])\r\n    |> last()\r\n\r\nunion(tables: [perf, energy])\r\n  |> group(columns: [\r\n    \"eval_id\",\r\n    \"train_run_id\",\r\n    \"inference_node\",\r\n    \"benchmark_node\",\r\n    \"concurrency\",\r\n    \"batch_size\"\r\n  ])\r\n  |> pivot(\r\n    rowKey: [\r\n      \"eval_id\",\r\n      \"train_run_id\",\r\n      \"inference_node\",\r\n      \"benchmark_node\",\r\n      \"concurrency\",\r\n      \"batch_size\"\r\n    ],\r\n    columnKey: [\"_field\"],\r\n    valueColumn: \"_value\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n    \"Eval ID\": r.eval_id,\r\n    \"Inference Node\": r.inference_node,\r\n    \"Benchmark Node\": r.benchmark_node,\r\n    \"Concurrency\": r.concurrency,\r\n    \"Success [%]\": if exists r.technical_success_rate then r.technical_success_rate * 100.0 else 0.0,\r\n    \"Top-1 Accuracy [%]\": if exists r.top1_accuracy then r.top1_accuracy * 100.0 else 0.0,\r\n    \"Durchsatz [req/s]\": if exists r.throughput_req_per_sec then r.throughput_req_per_sec else 0.0,\r\n    \"p95-Latenz [ms]\": if exists r.latency_ms_p95 then r.latency_ms_p95 else 0.0,\r\n    \"Model p95 [ms]\": if exists r.model_inference_ms_p95 then r.model_inference_ms_p95 else 0.0,\r\n    \"Energie [mWh]\": if exists r.total_energy_wh then r.total_energy_wh * 1000.0 else 0.0,\r\n    \"Joule/Request\": if exists r.total_joule_per_request then r.total_joule_per_request else 0.0,\r\n    \"Wh/1000 Requests\": if exists r.total_wh_per_1000_requests then r.total_wh_per_1000_requests else 0.0,\r\n    \"Ø Leistung [W]\": if exists r.total_avg_power_w then r.total_avg_power_w else 0.0\r\n  }))"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "table",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "inspect": false
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "id": 2,
+          "title": "Technische Erfolgsquote",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -30d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_inference_eval_summary\")\r\n  |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n  |> filter(fn: (r) => r._field == \"technical_success_rate\")\r\n  |> last()"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "percentunit",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-3": {
+        "kind": "Panel",
+        "spec": {
+          "id": 3,
+          "title": "Top-1-Accuracy",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -30d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_inference_eval_summary\")\r\n  |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n  |> filter(fn: (r) => r._field == \"top1_accuracy\")\r\n  |> last()"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "percentunit",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-4": {
+        "kind": "Panel",
+        "spec": {
+          "id": 4,
+          "title": "Durchsatz",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -30d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_inference_eval_summary\")\r\n  |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n  |> filter(fn: (r) => r._field == \"throughput_req_per_sec\")\r\n  |> last()"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "req/s",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-5": {
+        "kind": "Panel",
+        "spec": {
+          "id": 5,
+          "title": "p95-Latenz",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -30d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_inference_eval_summary\")\r\n  |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n  |> filter(fn: (r) => r._field == \"latency_ms_p95\")\r\n  |> last()"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "ms",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-7": {
+        "kind": "Panel",
+        "spec": {
+          "id": 7,
+          "title": "Inference-Vergleich über alle Nodes",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -30d)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"fl_inference_summary\" or\r\n    r._measurement == \"fl_inference_eval_summary\" or\r\n    r._measurement == \"fl_inference_energy_total\"\r\n  )\r\n  |> filter(fn: (r) => r.train_run_id == \"${train_run_id}\")\r\n  |> filter(fn: (r) =>\r\n    r._field == \"technical_success_rate\" or\r\n    r._field == \"top1_accuracy\" or\r\n    r._field == \"throughput_req_per_sec\" or\r\n    r._field == \"latency_ms_p50\" or\r\n    r._field == \"latency_ms_p95\" or\r\n    r._field == \"latency_ms_p99\" or\r\n    r._field == \"model_inference_ms_p95\" or\r\n    r._field == \"total_energy_wh\" or\r\n    r._field == \"total_joule_per_request\" or\r\n    r._field == \"total_wh_per_1000_requests\" or\r\n    r._field == \"total_avg_power_w\"\r\n  )\r\n  |> group(columns: [\r\n    \"eval_id\",\r\n    \"train_run_id\",\r\n    \"inference_node\",\r\n    \"benchmark_node\",\r\n    \"concurrency\",\r\n    \"batch_size\",\r\n    \"_field\"\r\n  ])\r\n  |> last()\r\n  |> group(columns: [\r\n    \"eval_id\",\r\n    \"train_run_id\",\r\n    \"inference_node\",\r\n    \"benchmark_node\",\r\n    \"concurrency\",\r\n    \"batch_size\"\r\n  ])\r\n  |> pivot(\r\n    rowKey: [\r\n      \"eval_id\",\r\n      \"inference_node\",\r\n      \"benchmark_node\",\r\n      \"concurrency\",\r\n      \"batch_size\"\r\n    ],\r\n    columnKey: [\"_field\"],\r\n    valueColumn: \"_value\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n    \"Eval ID\": r.eval_id,\r\n    \"Inference Node\": r.inference_node,\r\n    \"Benchmark Node\": r.benchmark_node,\r\n    \"Concurrency\": r.concurrency,\r\n    \"Batch Size\": r.batch_size,\r\n    \"Success [%]\": if exists r.technical_success_rate then r.technical_success_rate * 100.0 else 0.0,\r\n    \"Top-1 Accuracy [%]\": if exists r.top1_accuracy then r.top1_accuracy * 100.0 else 0.0,\r\n    \"Throughput [req/s]\": if exists r.throughput_req_per_sec then r.throughput_req_per_sec else 0.0,\r\n    \"p50 Latenz [ms]\": if exists r.latency_ms_p50 then r.latency_ms_p50 else 0.0,\r\n    \"p95 Latenz [ms]\": if exists r.latency_ms_p95 then r.latency_ms_p95 else 0.0,\r\n    \"p99 Latenz [ms]\": if exists r.latency_ms_p99 then r.latency_ms_p99 else 0.0,\r\n    \"Model p95 [ms]\": if exists r.model_inference_ms_p95 then r.model_inference_ms_p95 else 0.0,\r\n    \"Energie [mWh]\": if exists r.total_energy_wh then r.total_energy_wh * 1000.0 else 0.0,\r\n    \"Joule/Request\": if exists r.total_joule_per_request then r.total_joule_per_request else 0.0,\r\n    \"Wh/1000 Requests\": if exists r.total_wh_per_1000_requests then r.total_wh_per_1000_requests else 0.0,\r\n    \"Ø Leistung [W]\": if exists r.total_avg_power_w then r.total_avg_power_w else 0.0\r\n  }))\r\n  |> sort(columns: [\"Inference Node\"])"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "table",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "inspect": false
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-8": {
+        "kind": "Panel",
+        "spec": {
+          "id": 8,
+          "title": "Energieverbrauch",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -30d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_inference_energy_total\")\r\n  |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n  |> filter(fn: (r) => r.train_run_id == \"${train_run_id}\")\r\n  |> filter(fn: (r) => r._field == \"total_energy_wh\")\r\n  |> last()"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "watth",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-9": {
+        "kind": "Panel",
+        "spec": {
+          "id": 9,
+          "title": "CO₂-Fußabdruck",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBF227D336EFBEDC9"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -30d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_inference_energy_total\")\r\n  |> filter(fn: (r) => r.eval_id == \"${eval_id}\")\r\n  |> filter(fn: (r) => r.train_run_id == \"${train_run_id}\")\r\n  |> filter(fn: (r) => r._field == \"total_energy_wh\")\r\n  |> last()\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    _value: (float(v: r._value) / 1000.0) * 344.0\r\n  }))"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1+security-01",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "g CO₂",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "layout": {
+      "kind": "GridLayout",
+      "spec": {
+        "items": [
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
+              "y": 0,
+              "width": 4,
+              "height": 4,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-2"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 4,
+              "y": 0,
+              "width": 4,
+              "height": 4,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-4"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 8,
+              "y": 0,
+              "width": 3,
+              "height": 4,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-5"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 11,
+              "y": 0,
+              "width": 4,
+              "height": 4,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-3"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 15,
+              "y": 0,
+              "width": 4,
+              "height": 4,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-8"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 19,
+              "y": 0,
+              "width": 5,
+              "height": 4,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-9"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
+              "y": 4,
+              "width": 24,
+              "height": 6,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-1"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
+              "y": 10,
+              "width": 24,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-7"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "links": [],
+    "liveNow": false,
+    "preload": false,
+    "tags": [],
+    "timeSettings": {
+      "timezone": "browser",
+      "from": "now-6h",
+      "to": "now",
+      "autoRefresh": "",
+      "autoRefreshIntervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ],
+      "hideTimepicker": false,
+      "fiscalYearStartMonth": 0
+    },
+    "title": "Inference Dashboard",
+    "variables": [
+      {
+        "kind": "CustomVariable",
+        "spec": {
+          "name": "bucket",
+          "query": "greenaidata",
+          "current": {
+            "text": "greenaidata",
+            "value": "greenaidata"
+          },
+          "options": [],
+          "multi": false,
+          "includeAll": false,
+          "label": "",
+          "hide": "dontHide",
+          "skipUrlSync": false,
+          "description": "",
+          "allowCustomValue": true,
+          "valuesFormat": "csv"
+        }
+      },
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "name": "eval_id",
+          "current": {
+            "text": "local_http_c4_energy",
+            "value": "local_http_c4_energy"
+          },
+          "hide": "dontHide",
+          "refresh": "onDashboardLoad",
+          "skipUrlSync": false,
+          "query": {
+            "kind": "DataQuery",
+            "group": "influxdb",
+            "version": "v0",
+            "datasource": {
+              "name": "PBF227D336EFBEDC9"
+            },
+            "spec": {
+              "query": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues(\r\n  bucket: \"${bucket}\",\r\n  tag: \"eval_id\",\r\n  predicate: (r) =>\r\n    r._measurement =~ /^fl_inference_/ and\r\n    r.train_run_id == \"${train_run_id}\",\r\n  start: -30d\r\n)"
+            }
+          },
+          "regex": "",
+          "regexApplyTo": "value",
+          "sort": "disabled",
+          "definition": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues(\r\n  bucket: \"${bucket}\",\r\n  tag: \"eval_id\",\r\n  predicate: (r) =>\r\n    r._measurement =~ /^fl_inference_/ and\r\n    r.train_run_id == \"${train_run_id}\",\r\n  start: -30d\r\n)",
+          "options": [],
+          "multi": false,
+          "includeAll": false,
+          "allowCustomValue": true
+        }
+      },
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "name": "train_run_id",
+          "current": {
+            "text": "2026-05-27T20-05-10_CEST_quickstart_fedadam_cifar10_weighted_iid_1r_test",
+            "value": "2026-05-27T20-05-10_CEST_quickstart_fedadam_cifar10_weighted_iid_1r_test"
+          },
+          "hide": "dontHide",
+          "refresh": "onDashboardLoad",
+          "skipUrlSync": false,
+          "query": {
+            "kind": "DataQuery",
+            "group": "influxdb",
+            "version": "v0",
+            "datasource": {
+              "name": "PBF227D336EFBEDC9"
+            },
+            "spec": {
+              "query": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues(\r\n  bucket: \"${bucket}\",\r\n  tag: \"train_run_id\",\r\n  predicate: (r) => r._measurement =~ /^fl_inference_/,\r\n  start: -30d\r\n)"
+            }
+          },
+          "regex": "",
+          "regexApplyTo": "value",
+          "sort": "disabled",
+          "definition": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues(\r\n  bucket: \"${bucket}\",\r\n  tag: \"train_run_id\",\r\n  predicate: (r) => r._measurement =~ /^fl_inference_/,\r\n  start: -30d\r\n)",
+          "options": [],
+          "multi": false,
+          "includeAll": false,
+          "allowCustomValue": true
+        }
+      }
+    ],
+    "preferences": {
+      "layout": {
+        "kind": "GridLayout",
+        "spec": {
+          "items": []
+        }
+      }
+    }
+  }
+}
