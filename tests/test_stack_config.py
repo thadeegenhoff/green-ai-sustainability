@@ -1,6 +1,8 @@
 import json
+import importlib.util
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import yaml
 
@@ -8,6 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackConfigurationTests(unittest.TestCase):
+    def test_stack_readiness_retries_a_connection_reset(self):
+        spec = importlib.util.spec_from_file_location("smoke_stack", ROOT / "tests/smoke_stack.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        check = Mock(side_effect=[ConnectionResetError("starting"), False, "ready"])
+        with patch.object(smoke.time, "sleep"):
+            self.assertEqual(smoke.wait_for(check, "test service"), "ready")
+        self.assertEqual(check.call_count, 3)
+
     def test_dashboard_provider_uses_grafana_directory(self):
         provider = ROOT / "grafana/provisioning/dashboards/dashboards.yml"
         config = yaml.safe_load(provider.read_text())
