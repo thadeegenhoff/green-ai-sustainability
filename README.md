@@ -96,4 +96,12 @@ For an isolated fresh stack with local `.env` and services running, `python test
 
 Use `docker compose logs -f` for diagnostics and `docker compose stop` to stop services. `docker compose down` removes containers while retaining volumes. Removing volumes deletes database and Node-RED state; it is not needed to install these changes.
 
-The MQTT demo allows anonymous access, and Node-RED has no production authentication policy. Keep the stack on a trusted local network. Original experiment databases and result bundles are not included. A repository-wide licence has not yet been selected.
+The MQTT demo allows anonymous access, and Node-RED has no production authentication policy. Keep the stack on a trusted local network. Original experiment databases and result bundles are not included.
+
+## License
+
+Copyright 2026 Thade Egenhoff.
+
+Except where otherwise noted, the original code, configuration files, Node-RED flows, dashboards and documentation in this repository are licensed under the [Apache License, Version 2.0](LICENSE) (`Apache-2.0`). See [NOTICE](NOTICE) for attribution information.
+
+Third-party software, container images and external data retain their respective licences.
