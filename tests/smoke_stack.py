@@ -27,7 +27,7 @@ def wait_for(callback, label):
             value = callback()
             if value:
                 return value
-        except (HTTPError, URLError, TimeoutError, AssertionError):
+        except (HTTPError, URLError, TimeoutError, ConnectionError, AssertionError):
             pass
         time.sleep(2)
     raise AssertionError(f"Timed out waiting for {label}")
@@ -78,13 +78,17 @@ def main():
     ).decode()
     headers = {"Authorization": "Basic " + auth}
     wait_for(lambda: json.loads(request("http://localhost:3000/api/health"))["database"] == "ok", "Grafana")
-    source = json.loads(request("http://localhost:3000/api/datasources/uid/greenai-influxdb", headers=headers))
-    assert source["uid"] == "greenai-influxdb"
-    dashboards = wait_for(
-        lambda: json.loads(request("http://localhost:3000/api/search?type=dash-db", headers=headers)),
-        "provisioned dashboards",
+    source = wait_for(
+        lambda: json.loads(request("http://localhost:3000/api/datasources/uid/greenai-influxdb", headers=headers)),
+        "provisioned data source",
     )
-    assert len(dashboards) >= 3, "Expected three provisioned dashboards"
+    assert source["uid"] == "greenai-influxdb"
+
+    def all_dashboards():
+        dashboards = json.loads(request("http://localhost:3000/api/search?type=dash-db", headers=headers))
+        return dashboards if len(dashboards) >= 3 else None
+
+    wait_for(all_dashboards, "all three provisioned dashboards")
     print("Stack smoke check passed: ingestion, extra Node-RED nodes and Grafana provisioning.")
 
 
