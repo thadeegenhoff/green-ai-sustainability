@@ -2,22 +2,7 @@
   "apiVersion": "dashboard.grafana.app/v2",
   "kind": "Dashboard",
   "metadata": {
-    "name": "adpm5rs",
-    "namespace": "default",
-    "uid": "85a938f2-367e-41aa-aa44-7f2744339fa3",
-    "resourceVersion": "1780298399672015",
-    "generation": 24,
-    "creationTimestamp": "2026-05-25T09:03:15Z",
-    "labels": {
-      "grafana.app/deprecatedInternalID": "691257221046272"
-    },
-    "annotations": {
-      "grafana.app/createdBy": "user:bfm5uob69txj4c",
-      "grafana.app/folder": "",
-      "grafana.app/saved-from-ui": "Grafana v13.0.1+security-01 (9bbe672d)",
-      "grafana.app/updatedBy": "user:bfm5uob69txj4c",
-      "grafana.app/updatedTimestamp": "2026-06-01T07:19:59Z"
-    }
+    "name": "adpm5rs"
   },
   "spec": {
     "annotations": [
@@ -63,7 +48,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "import \"array\"\r\n\r\nreal =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) =>\r\n      r._measurement == \"fl_validation\" or\r\n      r._measurement == \"fl_experiment_summary\"\r\n    )\r\n    |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n    |> filter(fn: (r) => r._field == \"valid\")\r\n    |> last()\r\n    |> map(fn: (r) => ({\r\n      _time: r._time,\r\n      _value: if r._value == true then 1.0 else 0.0\r\n    }))\r\n\r\nfallback =\r\n  array.from(rows: [\r\n    {\r\n      _time: 1970-01-01T00:00:00Z,\r\n      _value: -1.0\r\n    }\r\n  ])\r\n\r\nunion(tables: [fallback, real])\r\n  |> group()\r\n  |> sort(columns: [\"_time\"])\r\n  |> last()"
@@ -159,7 +144,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) => r._field == \"energy_wh\")\r\n  |> filter(fn: (r) => r.node =~ /^${node:regex}$/)\r\n  |> group(columns: [\"node\"])\r\n  |> sum()"
@@ -249,7 +234,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) => r._field == \"net_energy_wh\")\r\n  |> filter(fn: (r) => r.node =~ /^${node:regex}$/)\r\n  |> group(columns: [\"node\"])\r\n  |> sum()"
@@ -339,7 +324,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) =>\r\n    r._field == \"server_accuracy\" or\r\n    r._field == \"eval_acc\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    round_num: int(v: r.round),\r\n    _value: float(v: r._value) * 100.0\r\n  }))\r\n  |> group(columns: [\"run_id\"])\r\n  |> pivot(rowKey: [\"round_num\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> sort(columns: [\"round_num\"])\r\n  |> rename(columns: {\r\n    round_num: \"Round\",\r\n    server_accuracy: \"Server Accuracy [%]\",\r\n    eval_acc: \"Evaluation Accuracy [%]\"\r\n  })"
@@ -445,7 +430,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"fl_experiment_summary\" or\r\n    r._measurement == \"fl_run_summary\"\r\n  )\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) => r._field == \"duration_s\")\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    _value: float(v: r._value)\r\n  }))\r\n  |> last()\r\n  |> map(fn: (r) => ({\r\n    \"Duration [s]\": r._value,\r\n    \"Model\": if exists r.model then r.model else \"unknown\",\r\n    \"Split\": if exists r.split then r.split else\r\n      if r.run_id =~ /weighted_iid/ then \"weighted_iid\"\r\n      else if r.run_id =~ /iid/ then \"iid\"\r\n      else \"unknown\",\r\n    \"Strategy\": if exists r.strategy then r.strategy else \"unknown\"\r\n  }))"
@@ -520,7 +505,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "acc =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n    |> filter(fn: (r) => r._field == \"server_accuracy\")\r\n    |> filter(fn: (r) => exists r.run_id)\r\n    |> map(fn: (r) => ({\r\n      r with\r\n      round_num: int(v: r.round),\r\n      _value: float(v: r._value)\r\n    }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> sort(columns: [\"round_num\"])\r\n    |> tail(n: 1)\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"final_accuracy\",\r\n      _value: r._value\r\n    }))\r\n\r\nenergy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n    |> filter(fn: (r) => r._field == \"energy_wh\")\r\n    |> filter(fn: (r) => exists r.run_id)\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> sum()\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"energy_wh\",\r\n      _value: r._value\r\n    }))\r\n\r\nunion(tables: [acc, energy])\r\n  |> group(columns: [\"run_id\"])\r\n  |> pivot(rowKey: [\"run_id\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> filter(fn: (r) => exists r.final_accuracy and exists r.energy_wh)\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    Accuracy_percent: r.final_accuracy * 100.0,\r\n    Energy_Wh: r.energy_wh\r\n  }))\r\n  |> keep(columns: [\"run_id\", \"Energy_Wh\", \"Accuracy_percent\"])\r\n  |> rename(columns: {\r\n    run_id: \"Run ID\",\r\n    Energy_Wh: \"Energy [Wh]\",\r\n    Accuracy_percent: \"Accuracy [%]\"\r\n  })"
@@ -636,7 +621,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_validation\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) =>\r\n    r._field == \"requested_num_server_rounds\" or\r\n    r._field == \"actual_num_rounds\"\r\n  )\r\n  |> last()\r\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")"
@@ -713,7 +698,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "base =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n    |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n    |> filter(fn: (r) => r._field == \"server_accuracy\")\r\n    |> map(fn: (r) => ({\r\n      r with\r\n      round_num: int(v: r.round),\r\n      _value: float(v: r._value)\r\n    }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> sort(columns: [\"round_num\"])\r\n\r\nstartAcc =\r\n  base\r\n    |> first()\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"start_accuracy\",\r\n      _value: r._value\r\n    }))\r\n\r\nfinalAcc =\r\n  base\r\n    |> tail(n: 1)\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"final_accuracy\",\r\n      _value: r._value\r\n    }))\r\n\r\nenergy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n    |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n    |> filter(fn: (r) => r._field == \"energy_wh\")\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> group()\r\n    |> sum()\r\n    |> map(fn: (r) => ({\r\n      run_id: \"${run_id}\",\r\n      _field: \"energy_wh\",\r\n      _value: r._value\r\n    }))\r\n\r\nunion(tables: [startAcc, finalAcc, energy])\r\n  |> group(columns: [\"run_id\"])\r\n  |> pivot(rowKey: [\"run_id\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    start_accuracy_percent: r.start_accuracy * 100.0,\r\n    final_accuracy_percent: r.final_accuracy * 100.0,\r\n    accuracy_gain_pp: (r.final_accuracy - r.start_accuracy) * 100.0,\r\n    accuracy_gain_per_wh: if r.energy_wh > 0.0 then ((r.final_accuracy - r.start_accuracy) * 100.0) / r.energy_wh else 0.0,\r\n    wh_per_accuracy_point: if (r.final_accuracy - r.start_accuracy) > 0.0 then r.energy_wh / ((r.final_accuracy - r.start_accuracy) * 100.0) else 0.0\r\n  }))\r\n  |> keep(columns: [\r\n    \"start_accuracy_percent\",\r\n    \"final_accuracy_percent\",\r\n    \"accuracy_gain_pp\",\r\n    \"energy_wh\",\r\n    \"accuracy_gain_per_wh\",\r\n    \"wh_per_accuracy_point\"\r\n  ])\r\n  |> group()\r\n  |> rename(columns: {\r\n    start_accuracy_percent: \"Start Accuracy [%]\",\r\n    final_accuracy_percent: \"Final Accuracy [%]\",\r\n    accuracy_gain_pp: \"Accuracy Gain [pp]\",\r\n    energy_wh: \"Energy [Wh]\",\r\n    accuracy_gain_per_wh: \"Accuracy Gain [pp/Wh]\",\r\n    wh_per_accuracy_point: \"Energy per Accuracy Point [Wh/pp]\"\r\n  })"
@@ -787,7 +772,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) =>\r\n    r._field == \"energy_wh\" or\r\n    r._field == \"net_energy_wh\"\r\n  )\r\n  |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n  |> group(columns: [\"_field\"])\r\n  |> sum()\r\n  |> group()\r\n  |> pivot(rowKey: [], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    _value: r.net_energy_wh / r.energy_wh\r\n  }))\r\n  |> keep(columns: [\"_value\"])"
@@ -869,7 +854,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "base =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n    |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n    |> filter(fn: (r) => r._field == \"server_accuracy\")\r\n    |> map(fn: (r) => ({\r\n      r with\r\n      round_num: int(v: r.round),\r\n      _value: float(v: r._value)\r\n    }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> sort(columns: [\"round_num\"])\r\n\r\nstartAcc =\r\n  base\r\n    |> first()\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"start_accuracy\",\r\n      _value: r._value\r\n    }))\r\n\r\nfinalAcc =\r\n  base\r\n    |> tail(n: 1)\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"final_accuracy\",\r\n      _value: r._value\r\n    }))\r\n\r\nenergy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n    |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n    |> filter(fn: (r) => r._field == \"energy_wh\")\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> group()\r\n    |> sum()\r\n    |> map(fn: (r) => ({\r\n      run_id: \"${run_id}\",\r\n      _field: \"energy_wh\",\r\n      _value: r._value\r\n    }))\r\n\r\nunion(tables: [startAcc, finalAcc, energy])\r\n  |> group(columns: [\"run_id\"])\r\n  |> pivot(rowKey: [\"run_id\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    start_accuracy_percent: r.start_accuracy * 100.0,\r\n    final_accuracy_percent: r.final_accuracy * 100.0,\r\n    accuracy_gain_pp: (r.final_accuracy - r.start_accuracy) * 100.0,\r\n    accuracy_gain_per_wh: if r.energy_wh > 0.0 then ((r.final_accuracy - r.start_accuracy) * 100.0) / r.energy_wh else 0.0,\r\n    wh_per_accuracy_point: if (r.final_accuracy - r.start_accuracy) > 0.0 then r.energy_wh / ((r.final_accuracy - r.start_accuracy) * 100.0) else 0.0\r\n  }))\r\n  |> map(fn: (r) => ({\r\n    _value: r.accuracy_gain_per_wh\r\n  }))\r\n  |> group()"
@@ -951,7 +936,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "energy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n    |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n    |> filter(fn: (r) => r._field == \"energy_wh\")\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> group()\r\n    |> sum()\r\n    |> map(fn: (r) => ({\r\n      run_id: \"${run_id}\",\r\n      _field: \"energy_wh\",\r\n      _value: r._value\r\n    }))\r\n\r\nduration =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) =>\r\n      r._measurement == \"fl_experiment_summary\" or\r\n      r._measurement == \"fl_run_summary\"\r\n    )\r\n    |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n    |> filter(fn: (r) => r._field == \"duration_s\")\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> last()\r\n    |> map(fn: (r) => ({\r\n      run_id: \"${run_id}\",\r\n      _field: \"duration_s\",\r\n      _value: r._value\r\n    }))\r\n\r\nunion(tables: [energy, duration])\r\n  |> group(columns: [\"run_id\"])\r\n  |> pivot(rowKey: [\"run_id\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> filter(fn: (r) => exists r.energy_wh and exists r.duration_s)\r\n  |> map(fn: (r) => ({\r\n    _value: if r.duration_s > 0.0 then r.energy_wh / (r.duration_s / 60.0) else 0.0\r\n  }))\r\n  |> group()"
@@ -1033,7 +1018,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) => r._field == \"energy_wh\")\r\n  |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n  |> group()\r\n  |> sum()\r\n  |> map(fn: (r) => ({\r\n    _value: (r._value / 1000.0) * 344.0\r\n  }))"
@@ -1152,7 +1137,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "duration =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) =>\r\n      r._measurement == \"fl_experiment_summary\" or\r\n      r._measurement == \"fl_run_summary\"\r\n    )\r\n    |> filter(fn: (r) => r._field == \"duration_s\")\r\n    |> filter(fn: (r) => exists r.run_id)\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> last()\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"duration_s\",\r\n      _value: r._value\r\n    }))\r\n\r\nnetEnergy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n    |> filter(fn: (r) => r._field == \"net_energy_wh\")\r\n    |> filter(fn: (r) => exists r.run_id)\r\n    |> filter(fn: (r) => r.node =~ /^${node:regex}$/)\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> sum()\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"net_energy_wh\",\r\n      _value: r._value\r\n    }))\r\n\r\ngrossEnergy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n    |> filter(fn: (r) => r._field == \"energy_wh\")\r\n    |> filter(fn: (r) => exists r.run_id)\r\n    |> filter(fn: (r) => r.node =~ /^${node:regex}$/)\r\n    |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> sum()\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"gross_energy_wh\",\r\n      _value: r._value\r\n    }))\r\n\r\naccuracy =\r\n  from(bucket: \"${bucket}\")\r\n    |> range(start: -365d)\r\n    |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n    |> filter(fn: (r) => r._field == \"server_accuracy\")\r\n    |> filter(fn: (r) => exists r.run_id)\r\n    |> map(fn: (r) => ({\r\n      r with\r\n      round_num: int(v: r.round),\r\n      _value: float(v: r._value)\r\n    }))\r\n    |> group(columns: [\"run_id\"])\r\n    |> sort(columns: [\"round_num\"])\r\n    |> tail(n: 1)\r\n    |> map(fn: (r) => ({\r\n      run_id: r.run_id,\r\n      _field: \"final_accuracy\",\r\n      _value: r._value\r\n    }))\r\n\r\nunion(tables: [duration, netEnergy, grossEnergy, accuracy])\r\n  |> group(columns: [\"run_id\"])\r\n  |> pivot(rowKey: [\"run_id\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> filter(fn: (r) =>\r\n    exists r.duration_s and\r\n    exists r.net_energy_wh and\r\n    r.duration_s > 0.0\r\n  )\r\n  |> map(fn: (r) => ({\r\n    \"Run ID\": r.run_id,\r\n    \"Duration [min]\": r.duration_s / 60.0,\r\n    \"Net Energy [Wh]\": r.net_energy_wh,\r\n    \"Gross Energy [Wh]\": if exists r.gross_energy_wh then r.gross_energy_wh else 0.0,\r\n    \"Energy Rate [Wh/min]\": r.net_energy_wh / (r.duration_s / 60.0),\r\n    \"Average Power [W]\": r.net_energy_wh / (r.duration_s / 3600.0),\r\n    \"Final Accuracy [%]\": if exists r.final_accuracy then r.final_accuracy * 100.0 else 0.0\r\n  }))\r\n  |> sort(columns: [\"Duration [min]\"])"
@@ -1268,7 +1253,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) =>\r\n    r._field == \"server_accuracy\" or\r\n    r._field == \"server_precision_macro\" or\r\n    r._field == \"server_recall_macro\" or\r\n    r._field == \"server_f1_macro\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    round_num: int(v: r.round),\r\n    _value: float(v: r._value)\r\n  }))\r\n  |> group(columns: [\"_field\"])\r\n  |> sort(columns: [\"round_num\"])\r\n  |> tail(n: 1)\r\n  |> map(fn: (r) => ({\r\n    sort_order:\r\n      if r._field == \"server_accuracy\" then 1\r\n      else if r._field == \"server_precision_macro\" then 2\r\n      else if r._field == \"server_recall_macro\" then 3\r\n      else 4,\r\n\r\n    \"Metrik\":\r\n      if r._field == \"server_accuracy\" then \"Accuracy\"\r\n      else if r._field == \"server_precision_macro\" then \"Precision macro\"\r\n      else if r._field == \"server_recall_macro\" then \"Recall macro\"\r\n      else \"F1-Score macro\",\r\n\r\n    \"Wert [%]\": r._value * 100.0,\r\n    \"Runde\": r.round_num\r\n  }))\r\n  |> group()\r\n  |> sort(columns: [\"sort_order\"])\r\n  |> drop(columns: [\"sort_order\"])"
@@ -1346,7 +1331,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) => r._field == \"server_loss\")\r\n  |> map(fn: (r) => ({r with round_num: int(v: r.round)}))\r\n  |> group()\r\n  |> sort(columns: [\"round_num\"])\r\n  |> last()"
@@ -1427,7 +1412,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) => r._field == \"energy_wh\")\r\n  |> group()\r\n  |> sum()"
@@ -1506,7 +1491,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_energy_summary\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) => r._field == \"net_energy_wh\")\r\n  |> group()\r\n  |> sum()"
@@ -1588,7 +1573,7 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
                         "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -365d)\r\n  |> filter(fn: (r) => r._measurement == \"fl_round_metrics\")\r\n  |> filter(fn: (r) => r.run_id == \"${run_id}\")\r\n  |> filter(fn: (r) =>\r\n    r._field == \"train_loss\" or\r\n    r._field == \"eval_loss\" or\r\n    r._field == \"server_loss\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n    r with\r\n    round_num: int(v: r.round),\r\n    _value: float(v: r._value)\r\n  }))\r\n  |> group(columns: [\"run_id\"])\r\n  |> pivot(rowKey: [\"round_num\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> sort(columns: [\"round_num\"])\r\n  |> rename(columns: {\r\n    round_num: \"Round\",\r\n    train_loss: \"Training Loss\",\r\n    eval_loss: \"Evaluation Loss\",\r\n    server_loss: \"Server Loss\"\r\n  })"
@@ -1988,7 +1973,7 @@
             "group": "influxdb",
             "version": "v0",
             "datasource": {
-              "name": "PBF227D336EFBEDC9"
+              "name": "greenai-influxdb"
             },
             "spec": {
               "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -7d)\r\n  |> filter(fn: (r) => r._measurement =~ /^fl_/)\r\n  |> filter(fn: (r) => exists r.run_id)\r\n  |> keep(columns: [\"run_id\"])\r\n  |> group()\r\n  |> distinct(column: \"run_id\")\r\n  |> sort()"
@@ -2024,7 +2009,7 @@
             "group": "influxdb",
             "version": "v0",
             "datasource": {
-              "name": "PBF227D336EFBEDC9"
+              "name": "greenai-influxdb"
             },
             "spec": {
               "query": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues(\r\n  bucket: \"${bucket}\",\r\n  tag: \"device\",\r\n  predicate: (r) => r._measurement == \"shelly_plug\",\r\n  start: -365d\r\n)"
@@ -2060,7 +2045,7 @@
             "group": "influxdb",
             "version": "v0",
             "datasource": {
-              "name": "PBF227D336EFBEDC9"
+              "name": "greenai-influxdb"
             },
             "spec": {
               "query": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues(\r\n  bucket: \"${bucket}\",\r\n  tag: \"node\",\r\n  predicate: (r) => r._measurement == \"fl_energy_summary\",\r\n  start: -365d\r\n)"

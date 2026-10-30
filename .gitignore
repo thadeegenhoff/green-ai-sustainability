@@ -1,4 +1,4 @@
-﻿# Secrets / Zugangsdaten
+# Secrets / Zugangsdaten
 .env
 .env.*
 !.env.example
@@ -36,3 +36,8 @@ Desktop.ini
 mosquitto/**/passwd
 mosquitto/**/passwd*
 !mosquitto/**/passwd.example
+
+# Local Python validation
+__pycache__/
+*.pyc
+.venv/
