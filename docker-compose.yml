@@ -33,13 +33,19 @@ services:
       - iot
 
   nodered:
-    image: nodered/node-red:latest
+    build:
+      context: ./nodered
+      args:
+        NODE_RED_IMAGE: ${NODE_RED_IMAGE:-nodered/node-red:4.1.0}
+    image: greenai-nodered:local
     container_name: nodered
     restart: unless-stopped
     ports:
       - "1880:1880"
     environment:
       TZ: ${TZ}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
       ELECTRICITY_MAPS_TOKEN: "${ELECTRICITY_MAPS_TOKEN}"
       ELECTRICITY_MAPS_ZONE: "${ELECTRICITY_MAPS_ZONE}"
     volumes:
@@ -51,7 +57,7 @@ services:
       - iot
 
   grafana:
-    image: grafana/grafana-oss:latest
+    image: ${GRAFANA_IMAGE:-grafana/grafana-oss:13.0.1}
     container_name: grafana
     restart: unless-stopped
     ports:

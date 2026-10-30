@@ -2,22 +2,7 @@
   "apiVersion": "dashboard.grafana.app/v2",
   "kind": "Dashboard",
   "metadata": {
-    "name": "addlc5c",
-    "namespace": "default",
-    "uid": "095fa5c9-8eee-46c8-87a2-e56466c4206d",
-    "resourceVersion": "1778926775551003",
-    "generation": 6,
-    "creationTimestamp": "2026-05-16T08:37:18Z",
-    "labels": {
-      "grafana.app/deprecatedInternalID": "1924675958525952"
-    },
-    "annotations": {
-      "grafana.app/createdBy": "user:bfm5uob69txj4c",
-      "grafana.app/folder": "",
-      "grafana.app/saved-from-ui": "Grafana v13.0.1+security-01 (9bbe672d)",
-      "grafana.app/updatedBy": "user:bfm5uob69txj4c",
-      "grafana.app/updatedTimestamp": "2026-05-16T10:19:35Z"
-    }
+    "name": "addlc5c"
   },
   "spec": {
     "annotations": [
@@ -63,10 +48,10 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "cfm61rc5ka1vkb"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
-                        "query": "from(bucket: \"greenaidata\")\r\n  |> range(start: -10m)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"power_w\")\r\n  |> group(columns: [\"device\"])\r\n  |> last()\r\n  |> group()\r\n  |> sum(column: \"_value\")\r\n  |> map(fn: (r) => ({ r with _time: now() }))"
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -10m)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"power_w\")\r\n  |> group(columns: [\"device\"])\r\n  |> last()\r\n  |> group()\r\n  |> sum(column: \"_value\")\r\n  |> map(fn: (r) => ({ r with _time: now() }))"
                       }
                     },
                     "refId": "A",
@@ -145,10 +130,10 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
-                        "query": "from(bucket: \"greenaidata\")\r\n  |> range(start: -10m)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"power_w\")\r\n  |> group(columns: [\"device\"])\r\n  |> last()\r\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])"
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: -10m)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"power_w\")\r\n  |> group(columns: [\"device\"])\r\n  |> last()\r\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])"
                       }
                     },
                     "refId": "A",
@@ -234,10 +219,10 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
-                        "query": "from(bucket: \"greenaidata\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"power_w\")\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"power_w\")"
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"power_w\")\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"power_w\")"
                       }
                     },
                     "refId": "A",
@@ -346,10 +331,10 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "PBF227D336EFBEDC9"
+                        "name": "greenai-influxdb"
                       },
                       "spec": {
-                        "query": "from(bucket: \"greenaidata\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"energy_wh\")\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> increase()\r\n  |> last()\r\n  |> group()\r\n  |> sum(column: \"_value\")\r\n  |> map(fn: (r) => ({ r with _value: r._value / 1000.0, _time: now() }))"
+                        "query": "from(bucket: \"${bucket}\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"shelly_plug\")\r\n  |> filter(fn: (r) => r._field == \"energy_wh\")\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> increase()\r\n  |> last()\r\n  |> group()\r\n  |> sum(column: \"_value\")\r\n  |> map(fn: (r) => ({ r with _value: r._value / 1000.0, _time: now() }))"
                       }
                     },
                     "refId": "A",
@@ -494,7 +479,26 @@
       "fiscalYearStartMonth": 0
     },
     "title": "Testdashboard",
-    "variables": [],
+    "variables": [
+      {
+        "kind": "CustomVariable",
+        "spec": {
+          "name": "bucket",
+          "query": "greenaidata",
+          "current": {
+            "text": "greenaidata",
+            "value": "greenaidata"
+          },
+          "options": [],
+          "multi": false,
+          "includeAll": false,
+          "hide": "dontHide",
+          "skipUrlSync": false,
+          "allowCustomValue": true,
+          "valuesFormat": "csv"
+        }
+      }
+    ],
     "preferences": {
       "layout": {
         "kind": "GridLayout",

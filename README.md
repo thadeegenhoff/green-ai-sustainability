@@ -1,195 +1,107 @@
-# GreenAI Sustainability
+# Green AI Sustainability Stack
 
-Kurze Docker-Compose-Umgebung zur Erfassung und Visualisierung von Energie- und CO₂-Daten für die GreenAI-Demonstration.
+This independent Docker Compose stack collects physical-host electricity readings and provides the measurement interface for [green-ai-orchestrator](https://github.com/thadeegenhoff/green-ai-orchestrator). Shelly plugs send MQTT readings to Mosquitto; Node-RED normalises them into InfluxDB; Grafana displays measurements and experiment results.
 
-Die Umgebung läuft getrennt vom GreenAI-Orchestrator und stellt Messdaten zentral über InfluxDB bereit. Shelly-Steckdosen senden ihre Leistungsdaten per MQTT an Mosquitto. Node-RED verarbeitet die MQTT-Nachrichten und schreibt die Messwerte nach InfluxDB. Grafana liest die Daten aus InfluxDB und visualisiert sie in Dashboards.
+| Service | Purpose | Host port |
+|---|---|---|
+| Mosquitto | MQTT transport | 1883 |
+| InfluxDB 2 | Measurements and experiment results | 8086 |
+| Node-RED | Ingestion and optional carbon-intensity input | 1880 |
+| Grafana | Device, training and inference dashboards | 3000 |
 
-## Enthaltene Dienste
+## 1. Configure and start
 
-| Dienst | Zweck | Port |
-|---|---|---:|
-| Mosquitto | MQTT-Broker für Shelly-/IoT-Messwerte | `1883` |
-| InfluxDB 2 | Zeitreihendatenbank für Energie-, CO₂- und Experimentdaten | `8086` |
-| Node-RED | Verarbeitung der MQTT-Daten und optionaler CO₂-API-Abfragen | `1880` |
-| Grafana | Visualisierung der Messdaten | `3000` |
-
-## Repository-Struktur
-
-```text
-green-ai-sustainability/
-├── docker-compose.yml
-├── .env.example
-├── grafana/provisioning/datasources/influxdb.yml
-├── mosquitto/config/mosquitto.conf
-└── nodered/flows.json
-```
-
-## Schnellstart
+Docker Engine and the Docker Compose plugin are required. Use an isolated local network and ensure the ports are available.
 
 ```bash
-git clone https://gitup.uni-potsdam.de/egenhoff/green-ai-sustainability.git
+git clone https://github.com/thadeegenhoff/green-ai-sustainability.git
 cd green-ai-sustainability
 cp .env.example .env
-```
-
-Unter Windows PowerShell alternativ:
-
-```powershell
-Copy-Item .env.example .env
-notepad .env
-```
-
-Trage in `.env` lokale Werte für InfluxDB, Grafana und optional Electricity Maps ein. Beispiel:
-
-```env
-TZ=Europe/Berlin
-INFLUXDB_USERNAME=admin
-INFLUXDB_PASSWORD=change_me
-INFLUXDB_ORG=thade
-INFLUXDB_BUCKET=greenaidata
-INFLUXDB_ADMIN_TOKEN=change_me
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=change_me
-ELECTRICITY_MAPS_TOKEN=optional
-ELECTRICITY_MAPS_ZONE=DE
-```
-
-Dann starten:
-
-```bash
-docker compose up -d
+# Edit the passwords, token, organisation and bucket in .env.
+docker compose up -d --build
 docker compose ps
 ```
 
-Dienste öffnen:
+On PowerShell, use `Copy-Item .env.example .env` for the copy step. Keep `.env` outside Git.
 
-```text
-Grafana:  http://localhost:3000
-InfluxDB: http://localhost:8086
-Node-RED: http://localhost:1880
-MQTT:     localhost:1883
-```
+The Node-RED image installs `node-red-contrib-influxdb@0.7.0` outside `/data`, so a persistent data volume does not hide the dependency. A new Node-RED volume is populated with the supplied flow. An existing volume retains its own flow; import `nodered/flows.json` manually if you want to update that installation. Existing data volumes are not deleted or migrated by these instructions.
 
-Logs anzeigen:
+The release defaults select Node-RED 4.1.0 and Grafana 13.0.1, with InfluxDB 2 and Mosquitto 2. Grafana must support the included v2 resource dashboard format. The defaults are configurable through `.env`; after a successful deployment, retain exact image digests for a fully fixed environment. They are not a claim about the exact versions used in every historical experiment.
+
+Open `http://localhost:1880` (Node-RED), `http://localhost:8086` (InfluxDB) and `http://localhost:3000` (Grafana).
+
+## 2. Configure the Node-RED InfluxDB token
+
+The flow's organisation and bucket fields use `${INFLUXDB_ORG}` and `${INFLUXDB_BUCKET}`, supplied to the container by Compose. The token is deliberately not stored in the exported flow.
+
+1. Open Node-RED and edit an InfluxDB output node.
+2. Open its shared `GreenAIDB` configuration node with the pencil button.
+3. Use InfluxDB version 2.0, URL `http://influxdb:8086`, and the token from `INFLUXDB_ADMIN_TOKEN` in your local `.env`.
+4. Save and deploy. Confirm the InfluxDB nodes have no credential or unknown-node errors.
+
+This one-time credential entry is required on a fresh installation. Changing `.env` alone does not replace credentials already saved in a Node-RED volume.
+
+## 3. Connect the physical meters
+
+Configure each Shelly to send MQTT to `<MEASUREMENT-HOST-IP>:1883`, using a stable unique device prefix. Example prefixes are `orchestrator`, `pc`, `oldlaptop`, `rpi5-8gb` and `rpi5-16gb`.
+
+The flow stores power in measurement `shelly_plug`, field `power_w`, with `device`, `source` and `generation` tags. Null, empty and non-numeric power values are not converted into zero power. The device tag must exactly match `power_tag_value` in the orchestrator's `node_mapping.json`.
+
+Verify that readings arrive before an AI experiment. A separate synthetic transport probe can be sent without impersonating a physical device:
 
 ```bash
-docker compose logs -f
+docker compose exec -T mosquitto mosquitto_pub -h localhost \
+  -t 'greenai-probe/status/switch:0' -m '{"apower":17.5}'
 ```
 
-Stoppen:
+Look for device `greenai-probe` in InfluxDB. This is a pipeline check, not a calibrated meter observation or experiment result.
+
+## 4. Open the dashboards
+
+The provider is under `grafana/provisioning/dashboards/dashboards.yml` (lowercase). Grafana provisions the InfluxDB data source with stable UID `greenai-influxdb`; all three dashboard exports reference it.
+
+Dashboards are loaded from `grafana/dashboards/` into the **Green AI** folder. Their bucket selector defaults to `greenaidata`. If `INFLUXDB_BUCKET` differs, select that bucket in each dashboard; dashboard JSON does not automatically substitute Compose environment variables. Training and inference views will remain empty until the orchestrator writes results.
+
+## 5. Connect the orchestrator
+
+Configure the orchestrator's local `.env.influx` with matching values:
 
 ```bash
-docker compose stop
-```
-
-Container entfernen, persistente Docker-Volumes aber behalten:
-
-```bash
-docker compose down
-```
-
-Achtung: `docker compose down -v` löscht auch die persistenten Daten.
-
-## Node-RED-Flow nutzen
-
-Der exportierte Flow liegt unter:
-
-```text
-nodered/flows.json
-```
-
-Falls der Flow nach dem ersten Start nicht automatisch in Node-RED erscheint, importiere ihn manuell über:
-
-```text
-Node-RED → Menü → Import → nodered/flows.json
-```
-
-Der Flow macht im Kern zwei Dinge:
-
-1. Shelly-MQTT-Nachrichten empfangen, bereinigen und in das InfluxDB-Measurement `shelly_plug` schreiben.
-2. Optional CO₂-Intensitätsdaten von Electricity Maps abrufen und in `grid_carbon_intensity` schreiben.
-
-Nach dem Import solltest du die InfluxDB-Nodes in Node-RED prüfen und sicherstellen, dass URL, Organisation, Bucket und Token zu deiner `.env` passen.
-
-## Shelly-Steckdosen einrichten
-
-Die Shelly-Geräte müssen im selben Netzwerk erreichbar sein und MQTT an diesen Broker senden:
-
-```text
-<HOST-IP>:1883
-```
-
-Als MQTT-Präfix sollte ein stabiler Gerätename verwendet werden, zum Beispiel:
-
-```text
-orchestrator
-pc
-rpi5-8gb
-rpi5-16gb
-oldlaptop
-```
-
-Node-RED nutzt dieses Präfix als Geräte-Tag in InfluxDB. Dadurch können Messwerte später pro Gerät gefiltert und mit Experimentläufen des Orchestrators verknüpft werden.
-
-## Grafana und InfluxDB
-
-Grafana bekommt die InfluxDB-Datenquelle über diese Datei provisioniert:
-
-```text
-grafana/provisioning/datasources/influxdb.yml
-```
-
-Dashboards können in Grafana erstellt oder importiert werden. Exportiere fertige Dashboards als JSON, wenn sie versioniert oder in einer Abgabe nachvollziehbar dokumentiert werden sollen.
-
-### Grafana-Dashboards
-
-Die Grafana-Dashboards werden versioniert im Repository abgelegt und beim Start von Grafana automatisch provisioniert. Dafür liegen die Dashboard-Exporte im Ordner `grafana/dashboards/` und die Provisioning-Konfiguration unter `grafana/provisioning/dashboards/dashboards.yml`.
-
-
-
-## Verbindung zum GreenAI-Orchestrator
-
-Der Orchestrator schreibt Trainings-, Inferenz- und Energieauswertungen in diese InfluxDB. Aus der Orchestrator-VM darf dafür nicht `http://influxdb:8086` verwendet werden, weil dieser Name nur innerhalb des Docker-Compose-Netzwerks gilt.
-
-Nutze stattdessen die vom Orchestrator erreichbare Host-Adresse:
-
-```env
-INFLUX_URL=http://<HOST-IP>:8086
-INFLUX_ORG=thade
+INFLUX_URL=http://<MEASUREMENT-HOST-IP>:8086
+INFLUX_ORG=greenai
 INFLUX_BUCKET=greenaidata
-INFLUX_TOKEN=<INFLUXDB_ADMIN_TOKEN>
+INFLUX_TOKEN=<the-token-from-your-local-env>
+POWER_MEASUREMENT=shelly_plug
+POWER_FIELD=power_w
+POWER_NODE_TAG=device
 ```
 
-Diese Werte gehören in die lokale Influx-Konfiguration des Orchestrators, zum Beispiel in `.env.influx`. Tokens und Passwörter nicht in Git versionieren.
+Replace the host, organisation and bucket as needed. `http://influxdb:8086` works inside the Compose network; another host or VM needs the reachable measurement-host address. Continue with cluster preparation, image build, a small training run and inference in the orchestrator README.
 
-## Electricity Maps
+## Optional carbon intensity
 
-Der Node-RED-Flow enthält eine optionale Abfrage der Electricity-Maps-API. Dafür müssen gesetzt sein:
+The Electricity Maps inject node remains disabled. To use it, configure `ELECTRICITY_MAPS_TOKEN` and `ELECTRICITY_MAPS_ZONE` locally, check the API response and then enable the node. Its output uses measurement `grid_carbon_intensity` in the same configured bucket. Enabling this path does not validate dynamic emissions calculations or reproduce the fixed-factor historical results.
 
-```env
-ELECTRICITY_MAPS_TOKEN=<token>
-ELECTRICITY_MAPS_ZONE=DE
+## Validation
+
+```bash
+python -m pip install pyyaml
+python -m unittest discover -s tests -v
+node tests/test_flow.js
 ```
 
-Der entsprechende Inject-Knoten ist für die Demonstration deaktiviert. Aktiviere ihn nur, wenn ein gültiger API-Token vorhanden ist und die InfluxDB-Zielkonfiguration geprüft wurde.
+For an isolated fresh stack with local `.env` and services running, `python tests/smoke_stack.py` checks service readiness, provisions the Node-RED test credentials through its local admin API, publishes a separate MQTT probe, verifies its InfluxDB value and checks Grafana provisioning. It uses local URLs and should be run only against the disposable test stack. CI runs this smoke check with temporary volumes.
 
-## Sicherheit
+## Operations and scope
 
-Die Mosquitto-Demokonfiguration erlaubt anonyme MQTT-Verbindungen. Das ist für ein isoliertes lokales Testnetz einfach, sollte aber nicht öffentlich erreichbar betrieben werden.
+Use `docker compose logs -f` for diagnostics and `docker compose stop` to stop services. `docker compose down` removes containers while retaining volumes. Removing volumes deletes database and Node-RED state; it is not needed to install these changes.
 
-Für einen abgesicherten Betrieb:
+The MQTT demo allows anonymous access, and Node-RED has no production authentication policy. Keep the stack on a trusted local network. Original experiment databases and result bundles are not included.
 
-- `allow_anonymous false` in `mosquitto/config/mosquitto.conf` setzen,
-- eine Mosquitto-Passwortdatei verwenden,
-- Ports nicht unnötig ins öffentliche Netzwerk freigeben,
-- `.env`, Tokens, Passwörter, Datenbank-Volumes und Backups nicht in Git speichern.
+## License
 
-## Typische Fehler
+Copyright 2026 Thade Egenhoff.
 
-**Keine Daten in Grafana:** Prüfe zuerst, ob Shelly → MQTT → Node-RED → InfluxDB funktioniert. In Node-RED helfen Debug-Nodes und die Container-Logs.
+Except where otherwise noted, the original code, configuration files, Node-RED flows, dashboards and documentation in this repository are licensed under the [Apache License, Version 2.0](LICENSE) (`Apache-2.0`). See [NOTICE](NOTICE) for attribution information.
 
-**Orchestrator erreicht InfluxDB nicht:** Verwende aus der VM die Host-IP des Docker-Systems, nicht den internen Compose-Namen `influxdb`.
-
-**Node-RED-Flow schreibt nicht:** Prüfe die InfluxDB-Konfiguration der Nodes sowie Bucket, Organisation und Token.
-
-**Daten nach Neustart weg:** Prüfe, ob versehentlich `docker compose down -v` verwendet wurde.
+Third-party software, container images and external data retain their respective licences.
